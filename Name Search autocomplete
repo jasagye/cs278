@@ -1,0 +1,72 @@
+import { useState, useEffect, useRef } from "react";
+import { db } from "./firebase";
+import { collection, getDocs } from "firebase/firestore";
+
+export function NameSearch() {
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState(null);
+  const [names, setNames] = useState([]); // all names with messages
+  const inputRef = useRef(null);
+
+  // Load all recipient names once on mount
+  useEffect(async () => {
+    const snap = await getDocs(collection(db, "messages"));
+    const nameSet = new Map();
+    snap.forEach(doc => {
+      const { recipient } = doc.data();
+      const key = recipient.toLowerCase();
+      nameSet.set(key, (nameSet.get(key) || 0) + 1);
+    });
+    setNames([...nameSet.entries()]); // [["alex", 3], ...]
+  }, []);
+
+  // Filter suggestions as user types
+  useEffect(() => {
+    if (!query.trim()) { setSuggestions([]); setOpen(false); return; }
+    const q = query.toLowerCase();
+    const matches = names
+      .filter(([name]) => name.startsWith(q))
+      .sort(([,a],[,b]) => b - a) // most messages first
+      .slice(0, 5);
+    setSuggestions(matches);
+    setOpen(matches.length > 0);
+  }, [query, names]);
+
+  async function selectName(name) {
+    setQuery(name);
+    setOpen(false);
+    const snap = await getDocs(collection(db, "messages"));
+    const found = [];
+    snap.forEach(doc => {
+      if (doc.data().recipient.toLowerCase() === name.toLowerCase())
+        found.push(doc.data());
+    });
+    setMessages(found);
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Type your first name..."
+      />
+      {open && (
+        <ul className="dropdown">
+          {suggestions.map(([name, count]) => (
+            <li key={name} onClick={() => selectName(name)}>
+              <strong>{name}</strong>
+              <span>{count} message{count !== 1 ? "s" : ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {messages?.map((m, i) => (
+        <div key={i} className="message-card">{m.text}</div>
+      ))}
+    </div>
+  );
+}
