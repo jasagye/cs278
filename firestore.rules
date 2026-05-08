@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /messages/{docId} {
+      // Public: only visible messages
+      allow read: if resource.data.status == 'visible'
+        || resource.data.status == 'reported';
+
+      allow create: if request.resource.data.keys().hasAll([
+          'recipientName', 'recipientNameDisplay', 'body',
+          'colorTheme', 'status', 'reportCount', 'submitterFingerprint'
+        ])
+        && request.resource.data.status == 'visible'
+        && request.resource.data.body.size() <= 280
+        && request.resource.data.recipientName.size() <= 30
+        && request.resource.data.reportCount == 0;
+
+      // Only allow incrementing reportCount (and toggling status to 'reported')
+      allow update: if
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['reportCount', 'status'])
+        && request.resource.data.reportCount == resource.data.reportCount + 1;
+    }
+
+    match /events/{docId} {
+      allow create: if true;
+    }
+  }
+}
