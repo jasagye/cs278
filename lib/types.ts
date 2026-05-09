@@ -22,6 +22,11 @@ export interface Message {
   submitterFingerprint: string
 }
 
+export interface NameSuggestion {
+  name: string
+  count: number
+}
+
 export interface AnalyticsEvent {
   event: 'message_submitted' | 'name_searched' | 'message_reported' | 'archive_viewed'
   payload?: Record<string, unknown>

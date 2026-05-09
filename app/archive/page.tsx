@@ -34,12 +34,29 @@ export default function ArchivePage() {
 
   // Initial load + analytics
   useEffect(() => {
-    loadMore()
+    let cancelled = false
+
+    getArchivePage()
+      .then(({ messages: initialMessages, lastDoc }) => {
+        if (cancelled) return
+        cursorRef.current = lastDoc
+        setMessages(initialMessages)
+        setHasMore(lastDoc !== null)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false)
+      })
+
     if (!trackedRef.current) {
       trackedRef.current = true
-      trackEvent('archive_viewed')
+      void trackEvent('archive_viewed')
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Intersection observer for infinite scroll
   useEffect(() => {

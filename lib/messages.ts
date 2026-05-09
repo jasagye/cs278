@@ -5,6 +5,8 @@ import {
   orderBy,
   limit,
   startAfter,
+  startAt,
+  endAt,
   getDocs,
   addDoc,
   updateDoc,
@@ -13,13 +15,14 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
   runTransaction,
-  increment,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import { Message, ColorTheme, MessageStatus } from './types'
+import { Message, ColorTheme, MessageStatus, NameSuggestion } from './types'
 import { trackEvent } from './analytics'
 
 const PAGE_SIZE = 30
+const SUGGESTION_DOC_LIMIT = 40
+const SUGGESTION_LIMIT = 5
 
 function toMessage(docSnap: QueryDocumentSnapshot<DocumentData>): Message {
   const d = docSnap.data()
@@ -55,7 +58,7 @@ export async function submitMessage(params: {
     submitterFingerprint: params.submitterFingerprint,
   })
 
-  await trackEvent('message_submitted')
+  void trackEvent('message_submitted')
 }
 
 export async function searchMessages(name: string): Promise<Message[]> {
@@ -79,9 +82,48 @@ export async function searchMessages(name: string): Promise<Message[]> {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 
-  await trackEvent('name_searched', { hashedQuery, resultCount: results.length })
+  void trackEvent('name_searched', { hashedQuery, resultCount: results.length })
 
   return results
+}
+
+export async function getNameSuggestions(prefix: string): Promise<NameSuggestion[]> {
+  const normalized = prefix.toLowerCase().trim()
+
+  if (!normalized) return []
+
+  const q = query(
+    collection(db, 'messages'),
+    orderBy('recipientName'),
+    startAt(normalized),
+    endAt(`${normalized}\uf8ff`),
+    limit(SUGGESTION_DOC_LIMIT)
+  )
+
+  const snap = await getDocs(q)
+  const counts = new Map<string, NameSuggestion>()
+
+  for (const docSnap of snap.docs) {
+    const data = docSnap.data()
+    if (data.status !== 'visible') continue
+
+    const key = data.recipientName as string
+    const existing = counts.get(key)
+
+    if (existing) {
+      existing.count += 1
+      continue
+    }
+
+    counts.set(key, {
+      name: data.recipientNameDisplay ?? key,
+      count: 1,
+    })
+  }
+
+  return Array.from(counts.values())
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, SUGGESTION_LIMIT)
 }
 
 export async function getArchivePage(
@@ -128,7 +170,7 @@ export async function reportMessage(id: string): Promise<void> {
     tx.update(ref, update)
   })
 
-  await trackEvent('message_reported', { messageId: id })
+  void trackEvent('message_reported', { messageId: id })
 }
 
 // Admin helpers

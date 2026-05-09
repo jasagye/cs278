@@ -25,6 +25,7 @@ export default function AdminPage() {
 
     setAuthLoading(false)
     if (res.ok) {
+      setLoading(true)
       setAuthed(true)
     } else {
       setError('Wrong password.')
@@ -33,10 +34,21 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!authed) return
-    setLoading(true)
+
+    let cancelled = false
+
     getReportedMessages()
-      .then(setMessages)
-      .finally(() => setLoading(false))
+      .then((nextMessages) => {
+        if (cancelled) return
+        setMessages(nextMessages)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [authed])
 
   async function approve(id: string) {

@@ -14,15 +14,6 @@ const app = admin.initializeApp({
 
 const db = admin.firestore(app)
 
-const THEMES = [
-  'rose-violet',
-  'sky-indigo',
-  'amber-orange',
-  'emerald-teal',
-  'pink-peach',
-  'lavender-blue',
-] as const
-
 const SEED_MESSAGES = [
   {
     recipientNameDisplay: 'Maya',

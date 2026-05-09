@@ -10,7 +10,13 @@ export default function StanfordGate({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    setVerified(stored === 'true')
+    const frameId = window.requestAnimationFrame(() => {
+      setVerified(stored === 'true')
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+    }
   }, [])
 
   function handleVerify() {

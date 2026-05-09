@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import ColorPicker from '@/components/ColorPicker'
 import { ColorTheme } from '@/lib/types'
 import { submitMessage } from '@/lib/messages'
 import { checkRateLimit } from '@/lib/rateLimit'
-import { getFingerprint } from '@/lib/fingerprint'
+import { getFingerprint, warmFingerprint } from '@/lib/fingerprint'
 import { containsProfanity } from '@/lib/profanity'
 
 const MAX_NAME = 30
@@ -20,6 +20,10 @@ export default function HomePage() {
   const [colorTheme, setColorTheme] = useState<ColorTheme>('rose-violet')
   const [state, setState] = useState<SubmitState>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+
+  useEffect(() => {
+    warmFingerprint()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
