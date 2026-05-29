@@ -1,0 +1,5 @@
+cd path/to/cs278
+npm install
+git add package-lock.json
+git commit -m "sync package-lock.json"
+git push
